@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   Files,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -61,7 +62,7 @@ export function BusinessProfile({ business }: { business: BusinessDetailData }) 
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Link href={`/admin/businesses/${business.id}/customers`}>
               <Button
                 variant="primary"
@@ -70,6 +71,17 @@ export function BusinessProfile({ business }: { business: BusinessDetailData }) 
                 leftIcon={<Users className="w-4 h-4" />}
               >
                 Inspect Customers ({formatNumber(business._count?.customers || 0)})
+              </Button>
+            </Link>
+
+            <Link href={`/admin/businesses/${business.id}/analyst`}>
+              <Button
+                variant="outline"
+                size="md"
+                className="rounded-xl font-bold border-[#4B49AC] text-[#4B49AC] hover:bg-[#4B49AC] hover:text-white transition-all shadow-2xs px-5 py-2.5"
+                leftIcon={<Sparkles className="w-4 h-4" />}
+              >
+                AI Business Analyst
               </Button>
             </Link>
           </div>

@@ -17,6 +17,8 @@ export default function AdminRootLayout({ children }: { children: React.ReactNod
   let pageTitle = 'Dashboard Overview';
   if (pathname.includes('/admin/businesses') && pathname.includes('/customers')) {
     pageTitle = 'Customer Inspection';
+  } else if (pathname.includes('/admin/businesses') && pathname.includes('/analyst')) {
+    pageTitle = 'AI Business Analyst';
   } else if (pathname.includes('/admin/businesses')) {
     pageTitle = 'Business Directory';
   } else if (pathname.includes('/admin/imports')) {

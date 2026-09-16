@@ -463,16 +463,216 @@ async function runTests() {
     record('TC-16', 'Non-Existent Import 404', 'GET /admin/imports/:id', 'HTTP 404', err.message, false, 0, err.message);
   }
 
-  // --- TC-17: Session Logout (POST /auth/logout) ---
+  // --- TC-17: Trailing 30-Day AI Business Analyst Summary ---
+  const activeAuthToken = rotatedAccessToken || adminTokens.accessToken;
+  const analystHeaders = {
+    Authorization: `Bearer ${activeAuthToken}`,
+    'Content-Type': 'application/json',
+  };
+
+  if (firstBusinessId) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/businesses/${firstBusinessId}/analyst-summary`, {
+        headers: analystHeaders,
+      });
+      const data = await res.json();
+      const hasSafeContract =
+        res.status === 200 &&
+        data.success === true &&
+        data.data?.period?.from &&
+        data.data?.period?.to &&
+        typeof data.data?.summary === 'string' &&
+        Array.isArray(data.data?.metrics) &&
+        Array.isArray(data.data?.insights) &&
+        Array.isArray(data.data?.recommendations) &&
+        Array.isArray(data.data?.dataLimitations) &&
+        data.data?.executionMode === undefined &&
+        data.data?.isAsync === undefined &&
+        data.data?.dataSnapshotJson === undefined &&
+        data.data?.contextJson === undefined;
+
+      record(
+        'TC-17',
+        'AI Business Analyst 30-Day Summary Retrieval & Contract Safety',
+        `GET /api/v1/admin/businesses/${firstBusinessId}/analyst-summary`,
+        'HTTP 200, period, summary, metrics, insights, recommendations, limitations; zero unsupported/raw fields',
+        `Status: ${res.status}, metrics: ${data.data?.metrics?.length}, insights: ${data.data?.insights?.length}, recs: ${data.data?.recommendations?.length}`,
+        hasSafeContract,
+        res.status,
+      );
+    } catch (err) {
+      record('TC-17', 'Analyst Summary Retrieval', 'GET /admin/businesses/:id/analyst-summary', 'HTTP 200', err.message, false, 0, err.message);
+    }
+
+    // --- TC-18: Business Historical Analyses Listing & Pagination ---
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/businesses/${firstBusinessId}/analyses?page=1&limit=10`, {
+        headers: analystHeaders,
+      });
+      const data = await res.json();
+      const pass =
+        res.status === 200 &&
+        data.success === true &&
+        (Array.isArray(data.data) || Array.isArray(data.data?.data)) &&
+        (data.meta !== undefined || data.data?.meta !== undefined);
+
+      record(
+        'TC-18',
+        'Historical Analyses Listing & Pagination Structure',
+        `GET /api/v1/admin/businesses/${firstBusinessId}/analyses?page=1&limit=10`,
+        'HTTP 200, paginated analyses array, meta pagination',
+        `Status: ${res.status}, items: ${Array.isArray(data.data) ? data.data.length : data.data?.data?.length}`,
+        pass,
+        res.status,
+      );
+    } catch (err) {
+      record('TC-18', 'Historical Analyses Listing', 'GET /admin/businesses/:id/analyses', 'HTTP 200', err.message, false, 0, err.message);
+    }
+
+    // --- TC-19: Historical Analyses Query Filtering ---
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/admin/businesses/${firstBusinessId}/analyses?status=COMPLETED&analysisType=BUSINESS_SUMMARY`,
+        { headers: analystHeaders },
+      );
+      const data = await res.json();
+      const pass = res.status === 200 && data.success === true;
+
+      record(
+        'TC-19',
+        'Historical Analyses Query Parameter Filtering',
+        `GET /api/v1/admin/businesses/${firstBusinessId}/analyses?status=COMPLETED&analysisType=BUSINESS_SUMMARY`,
+        'HTTP 200 with filtered analyses response',
+        `Status: ${res.status}, success: ${data.success}`,
+        pass,
+        res.status,
+      );
+    } catch (err) {
+      record('TC-19', 'Historical Analyses Filtering', 'GET /admin/businesses/:id/analyses?filter', 'HTTP 200', err.message, false, 0, err.message);
+    }
+
+    // --- TC-20: Non-Existent Analysis Inspection (404 Error State) ---
+    try {
+      const fakeAnalysisId = '00000000-0000-0000-0000-000000000000';
+      const res = await fetch(`${BACKEND_URL}/admin/businesses/${firstBusinessId}/analyses/${fakeAnalysisId}`, {
+        headers: analystHeaders,
+      });
+      const data = await res.json();
+      const pass = res.status === 404 && data.errorCode === 'ANALYSIS_NOT_FOUND';
+
+      record(
+        'TC-20',
+        'Non-Existent Analysis Inspection Error Handling',
+        `GET /api/v1/admin/businesses/${firstBusinessId}/analyses/${fakeAnalysisId}`,
+        'HTTP 404 Not Found, errorCode: ANALYSIS_NOT_FOUND',
+        `Status: ${res.status}, errorCode: ${data.errorCode}`,
+        pass,
+        res.status,
+      );
+    } catch (err) {
+      record('TC-20', 'Non-Existent Analysis 404', 'GET /admin/businesses/:id/analyses/:analysisId', 'HTTP 404', err.message, false, 0, err.message);
+    }
+
+    // --- TC-21: Business Questions & Answers Audit History ---
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/businesses/${firstBusinessId}/questions?page=1&limit=10`, {
+        headers: analystHeaders,
+      });
+      const data = await res.json();
+      const pass =
+        res.status === 200 &&
+        data.success === true &&
+        (Array.isArray(data.data) || Array.isArray(data.data?.data));
+
+      record(
+        'TC-21',
+        'Business Questions & Answers History Listing',
+        `GET /api/v1/admin/businesses/${firstBusinessId}/questions?page=1&limit=10`,
+        'HTTP 200, array of questions with status, answer, createdAt',
+        `Status: ${res.status}, items: ${Array.isArray(data.data) ? data.data.length : data.data?.data?.length}`,
+        pass,
+        res.status,
+      );
+    } catch (err) {
+      record('TC-21', 'Questions History Listing', 'GET /admin/businesses/:id/questions', 'HTTP 200', err.message, false, 0, err.message);
+    }
+
+    // --- TC-22: Business Questions Filtering by Status ---
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/businesses/${firstBusinessId}/questions?status=COMPLETED`, {
+        headers: analystHeaders,
+      });
+      const data = await res.json();
+      const pass = res.status === 200 && data.success === true;
+
+      record(
+        'TC-22',
+        'Business Questions Status Parameter Filtering',
+        `GET /api/v1/admin/businesses/${firstBusinessId}/questions?status=COMPLETED`,
+        'HTTP 200 with status-filtered questions',
+        `Status: ${res.status}, success: ${data.success}`,
+        pass,
+        res.status,
+      );
+    } catch (err) {
+      record('TC-22', 'Questions Status Filtering', 'GET /admin/businesses/:id/questions?status=', 'HTTP 200', err.message, false, 0, err.message);
+    }
+  }
+
+  // --- TC-23: Non-Existent Business Analyst Summary Error Handling (404) ---
+  try {
+    const fakeBizId = '00000000-0000-0000-0000-000000000000';
+    const res = await fetch(`${BACKEND_URL}/admin/businesses/${fakeBizId}/analyst-summary`, {
+      headers: analystHeaders,
+    });
+    const data = await res.json();
+    const pass = res.status === 404 && data.errorCode === 'BUSINESS_NOT_FOUND';
+
+    record(
+      'TC-23',
+      'Non-Existent Business Analyst Summary Error Handling',
+      `GET /api/v1/admin/businesses/${fakeBizId}/analyst-summary`,
+      'HTTP 404 Not Found, errorCode: BUSINESS_NOT_FOUND',
+      `Status: ${res.status}, errorCode: ${data.errorCode}`,
+      pass,
+      res.status,
+    );
+  } catch (err) {
+    record('TC-23', 'Non-Existent Business Summary 404', 'GET /admin/businesses/:id/analyst-summary', 'HTTP 404', err.message, false, 0, err.message);
+  }
+
+  // --- TC-24: Non-Existent Business Analyses Listing Error Handling (404) ---
+  try {
+    const fakeBizId = '00000000-0000-0000-0000-000000000000';
+    const res = await fetch(`${BACKEND_URL}/admin/businesses/${fakeBizId}/analyses`, {
+      headers: analystHeaders,
+    });
+    const data = await res.json();
+    const pass = res.status === 404 && data.errorCode === 'BUSINESS_NOT_FOUND';
+
+    record(
+      'TC-24',
+      'Non-Existent Business Historical Analyses Error Handling',
+      `GET /api/v1/admin/businesses/${fakeBizId}/analyses`,
+      'HTTP 404 Not Found, errorCode: BUSINESS_NOT_FOUND',
+      `Status: ${res.status}, errorCode: ${data.errorCode}`,
+      pass,
+      res.status,
+    );
+  } catch (err) {
+    record('TC-24', 'Non-Existent Business Analyses 404', 'GET /admin/businesses/:id/analyses', 'HTTP 404', err.message, false, 0, err.message);
+  }
+
+  // --- TC-25: Session Logout (POST /auth/logout) ---
   try {
     const res = await fetch(`${BACKEND_URL}/auth/logout`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${rotatedAccessToken || adminTokens.accessToken}` },
+      headers: { Authorization: `Bearer ${activeAuthToken}` },
     });
     const data = await res.json();
     const pass = res.status === 200 && data.success === true;
     record(
-      'TC-17',
+      'TC-25',
       'Session Logout & Server-Side Revocation',
       'POST /api/v1/auth/logout with active bearer token',
       'HTTP 200, message: "Logged out successfully"',
@@ -481,10 +681,10 @@ async function runTests() {
       res.status,
     );
   } catch (err) {
-    record('TC-17', 'Session Logout', 'POST /auth/logout', 'HTTP 200', err.message, false, 0, err.message);
+    record('TC-25', 'Session Logout', 'POST /auth/logout', 'HTTP 200', err.message, false, 0, err.message);
   }
 
-  // --- TC-18: Refresh Token Re-use Detection / Revoked Session Check ---
+  // --- TC-26: Refresh Token Re-use Detection / Revoked Session Check ---
   if (rotatedRefreshToken) {
     try {
       const res = await fetch(`${BACKEND_URL}/auth/refresh`, {
@@ -498,7 +698,7 @@ async function runTests() {
       // Since session was logged out, refresh should be rejected as revoked
       const pass = res.status === 401 && (data.errorCode === 'SESSION_EXPIRED' || data.errorCode === 'TOKEN_REUSE_DETECTED');
       record(
-        'TC-18',
+        'TC-26',
         'Revoked Session Refresh Rejection',
         'POST /api/v1/auth/refresh with token from revoked session',
         'HTTP 401 Unauthorized, session revoked',
@@ -507,7 +707,7 @@ async function runTests() {
         res.status,
       );
     } catch (err) {
-      record('TC-18', 'Revoked Session Refresh', 'POST /auth/refresh', 'HTTP 401', err.message, false, 0, err.message);
+      record('TC-26', 'Revoked Session Refresh', 'POST /auth/refresh', 'HTTP 401', err.message, false, 0, err.message);
     }
   }
 

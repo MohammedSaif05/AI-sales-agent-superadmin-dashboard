@@ -19,17 +19,21 @@ export function Badge({
   if (status) {
     switch (status) {
       case ImportStatus.COMPLETED:
+      case 'COMPLETED':
         resolvedVariant = 'success';
         break;
       case ImportStatus.FAILED:
+      case 'FAILED':
         resolvedVariant = 'danger';
         break;
       case ImportStatus.PROCESSING:
       case ImportStatus.PARSING:
+      case 'PROCESSING':
         resolvedVariant = 'info';
         break;
       case ImportStatus.PREVIEW_READY:
       case ImportStatus.PENDING:
+      case 'QUEUED':
         resolvedVariant = 'warning';
         break;
       default:
