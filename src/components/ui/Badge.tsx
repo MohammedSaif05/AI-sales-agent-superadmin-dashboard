@@ -20,6 +20,8 @@ export function Badge({
     switch (status) {
       case ImportStatus.COMPLETED:
       case 'COMPLETED':
+      case 'CONNECTED':
+      case 'PROCESSED':
         resolvedVariant = 'success';
         break;
       case ImportStatus.FAILED:
@@ -29,15 +31,19 @@ export function Badge({
       case ImportStatus.PROCESSING:
       case ImportStatus.PARSING:
       case 'PROCESSING':
+      case 'RECEIVED':
         resolvedVariant = 'info';
         break;
       case ImportStatus.PREVIEW_READY:
       case ImportStatus.PENDING:
       case 'QUEUED':
+      case 'DISCONNECTING':
         resolvedVariant = 'warning';
         break;
+      case 'DISCONNECTED':
       default:
         resolvedVariant = 'neutral';
+        break;
     }
   }
 

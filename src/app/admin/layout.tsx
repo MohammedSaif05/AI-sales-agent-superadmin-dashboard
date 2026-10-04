@@ -23,6 +23,12 @@ export default function AdminRootLayout({ children }: { children: React.ReactNod
     pageTitle = 'Business Directory';
   } else if (pathname.includes('/admin/imports')) {
     pageTitle = 'Import Monitoring';
+  } else if (pathname.includes('/admin/whatsapp/connections')) {
+    pageTitle = 'WhatsApp Connections';
+  } else if (pathname.includes('/admin/whatsapp/webhook-events')) {
+    pageTitle = 'WhatsApp Webhook Events';
+  } else if (pathname.includes('/admin/whatsapp')) {
+    pageTitle = 'WhatsApp Infrastructure';
   }
 
   return (

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Store, FileSpreadsheet, ShieldAlert, X, ChevronRight, Sparkles } from 'lucide-react';
+import { LayoutGrid, Store, FileSpreadsheet, ShieldAlert, X, ChevronRight, Sparkles, MessageSquare, Webhook } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const NAV_ITEMS = [
@@ -22,6 +22,19 @@ const NAV_ITEMS = [
     label: 'Imports',
     href: '/admin/imports',
     icon: FileSpreadsheet,
+  },
+];
+
+const WHATSAPP_NAV_ITEMS = [
+  {
+    label: 'WhatsApp Connections',
+    href: '/admin/whatsapp/connections',
+    icon: MessageSquare,
+  },
+  {
+    label: 'Webhook Events',
+    href: '/admin/whatsapp/webhook-events',
+    icon: Webhook,
   },
 ];
 
@@ -70,6 +83,46 @@ export function Sidebar({ onClose }: SidebarProps) {
           const isActive =
             pathname === item.href ||
             (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onClose}
+              className={cn(
+                'group flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-150',
+                isActive
+                  ? 'bg-[#4B49AC] text-white shadow-md shadow-[#4B49AC]/25 font-bold'
+                  : 'text-[#6C7383] hover:bg-[#F5F7FF] hover:text-[#4B49AC]',
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Icon
+                  className={cn(
+                    'h-4 w-4 transition-colors',
+                    isActive ? 'text-white' : 'text-[#6C7383] group-hover:text-[#4B49AC]',
+                  )}
+                />
+                <span>{item.label}</span>
+              </div>
+              <ChevronRight
+                className={cn(
+                  'h-3.5 w-3.5 transition-transform',
+                  isActive
+                    ? 'text-white/80 translate-x-0.5'
+                    : 'text-[#C4C9D6] group-hover:text-[#4B49AC] group-hover:translate-x-0.5',
+                )}
+              />
+            </Link>
+          );
+        })}
+
+        <div className="pt-4 px-3 pb-2 text-[10px] font-extrabold uppercase tracking-widest text-[#98A2B3]">
+          WhatsApp Channels
+        </div>
+        {WHATSAPP_NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href || pathname.startsWith(item.href);
 
           return (
             <Link

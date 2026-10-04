@@ -6,6 +6,7 @@ const SUPER_ADMIN_PASSWORD = 'saif@2005';
 
 async function runTests() {
   const results = [];
+  let normalUserToken = null;
 
   function record(id, scenario, steps, expected, actual, pass, status, issue = null) {
     results.push({ id, scenario, steps, expected, actual, pass, status, issue });
@@ -114,8 +115,8 @@ async function runTests() {
 
     const regData = await regRes.json();
     const userToken = regData.data?.tokens?.accessToken;
-
     if (userToken) {
+      normalUserToken = userToken;
       // Attempt to access admin dashboard with normal user token
       const adminRes = await fetch(`${BACKEND_URL}/admin/dashboard`, {
         headers: { Authorization: `Bearer ${userToken}` },
@@ -663,7 +664,182 @@ async function runTests() {
     record('TC-24', 'Non-Existent Business Analyses 404', 'GET /admin/businesses/:id/analyses', 'HTTP 404', err.message, false, 0, err.message);
   }
 
-  // --- TC-25: Session Logout (POST /auth/logout) ---
+  // --- TC-25: WhatsApp Connections List Retrieval & Token Sanitization ---
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/whatsapp/connections`, {
+      headers: {
+        Authorization: `Bearer ${activeAuthToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await res.json();
+    const pass =
+      res.status === 200 &&
+      data.success === true &&
+      Array.isArray(data.data) &&
+      data.data.every(
+        (conn) =>
+          conn.encryptedAccessToken === undefined &&
+          conn.accessToken === undefined &&
+          conn.id &&
+          conn.businessId &&
+          conn.wabaId &&
+          conn.phoneNumberId &&
+          conn.displayPhoneNumber &&
+          conn.status &&
+          conn.business &&
+          typeof conn.business.name === 'string',
+      );
+
+    record(
+      'TC-25',
+      'WhatsApp Connections List Retrieval & Token Stripping',
+      'GET /api/v1/admin/whatsapp/connections',
+      'HTTP 200, array of connections with business summary, encryptedAccessToken omitted',
+      `Status: ${res.status}, count: ${data.data?.length}, tokensStripped: ${data.data?.every((c) => c.encryptedAccessToken === undefined)}`,
+      pass,
+      res.status,
+    );
+  } catch (err) {
+    record('TC-25', 'WhatsApp Connections Retrieval', 'GET /admin/whatsapp/connections', 'HTTP 200', err.message, false, 0, err.message);
+  }
+
+  // --- TC-26: WhatsApp Webhook Events Listing & Limit Parameter ---
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/whatsapp/webhook-events?limit=25`, {
+      headers: {
+        Authorization: `Bearer ${activeAuthToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await res.json();
+    const pass =
+      res.status === 200 &&
+      data.success === true &&
+      Array.isArray(data.data) &&
+      data.data.length <= 25;
+
+    record(
+      'TC-26',
+      'WhatsApp Webhook Events Listing & Limit Parameter',
+      'GET /api/v1/admin/whatsapp/webhook-events?limit=25',
+      'HTTP 200, array of webhook events with length <= 25',
+      `Status: ${res.status}, count: ${data.data?.length}`,
+      pass,
+      res.status,
+    );
+  } catch (err) {
+    record('TC-26', 'Webhook Events Listing', 'GET /admin/whatsapp/webhook-events?limit=25', 'HTTP 200', err.message, false, 0, err.message);
+  }
+
+  // --- TC-27: WhatsApp Webhook Events Status Filtering (status=QUEUED) ---
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/whatsapp/webhook-events?status=QUEUED&limit=10`, {
+      headers: {
+        Authorization: `Bearer ${activeAuthToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await res.json();
+    const pass =
+      res.status === 200 &&
+      data.success === true &&
+      Array.isArray(data.data) &&
+      data.data.every((evt) => evt.status === 'QUEUED');
+
+    record(
+      'TC-27',
+      'WhatsApp Webhook Events Status Filtering (status=QUEUED)',
+      'GET /api/v1/admin/whatsapp/webhook-events?status=QUEUED',
+      'HTTP 200, array of events all having status QUEUED',
+      `Status: ${res.status}, count: ${data.data?.length}`,
+      pass,
+      res.status,
+    );
+  } catch (err) {
+    record('TC-27', 'Webhook Events Status Filter (QUEUED)', 'GET /admin/whatsapp/webhook-events?status=QUEUED', 'HTTP 200', err.message, false, 0, err.message);
+  }
+
+  // --- TC-28: WhatsApp Webhook Events Status Filtering (status=FAILED) ---
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/whatsapp/webhook-events?status=FAILED&limit=10`, {
+      headers: {
+        Authorization: `Bearer ${activeAuthToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await res.json();
+    const pass =
+      res.status === 200 &&
+      data.success === true &&
+      Array.isArray(data.data) &&
+      data.data.every((evt) => evt.status === 'FAILED');
+
+    record(
+      'TC-28',
+      'WhatsApp Webhook Events Status Filtering (status=FAILED)',
+      'GET /api/v1/admin/whatsapp/webhook-events?status=FAILED',
+      'HTTP 200, array of events all having status FAILED',
+      `Status: ${res.status}, count: ${data.data?.length}`,
+      pass,
+      res.status,
+    );
+  } catch (err) {
+    record('TC-28', 'Webhook Events Status Filter (FAILED)', 'GET /admin/whatsapp/webhook-events?status=FAILED', 'HTTP 200', err.message, false, 0, err.message);
+  }
+
+  // --- TC-29: Webhook Event Retry with Non-Existent ID (404 Error State) ---
+  try {
+    const fakeEventId = '00000000-0000-0000-0000-000000000000';
+    const res = await fetch(`${BACKEND_URL}/admin/whatsapp/webhook-events/${fakeEventId}/retry`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${activeAuthToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const pass = res.status === 404;
+
+    record(
+      'TC-29',
+      'Webhook Event Retry with Non-Existent ID (404)',
+      `POST /api/v1/admin/whatsapp/webhook-events/${fakeEventId}/retry`,
+      'HTTP 404 Not Found for non-existent event retry',
+      `Status: ${res.status}`,
+      pass,
+      res.status,
+    );
+  } catch (err) {
+    record('TC-29', 'Webhook Event Retry 404', 'POST /admin/whatsapp/webhook-events/:id/retry', 'HTTP 404', err.message, false, 0, err.message);
+  }
+
+  // --- TC-30: Non-SuperAdmin Role Rejection on WhatsApp Admin Endpoints ---
+  if (normalUserToken) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/whatsapp/connections`, {
+        headers: {
+          Authorization: `Bearer ${normalUserToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+      const pass = res.status === 403 && data.errorCode === 'FORBIDDEN';
+
+      record(
+        'TC-30',
+        'Non-SuperAdmin Role Rejection on WhatsApp Admin Endpoints',
+        'GET /api/v1/admin/whatsapp/connections using USER role token',
+        'HTTP 403 Forbidden, errorCode: FORBIDDEN',
+        `Status: ${res.status}, errorCode: ${data.errorCode}`,
+        pass,
+        res.status,
+      );
+    } catch (err) {
+      record('TC-30', 'Non-SuperAdmin Rejection on WhatsApp', 'GET /admin/whatsapp/connections', 'HTTP 403', err.message, false, 0, err.message);
+    }
+  }
+
+  // --- TC-31: Session Logout (POST /auth/logout) ---
   try {
     const res = await fetch(`${BACKEND_URL}/auth/logout`, {
       method: 'POST',
@@ -672,7 +848,7 @@ async function runTests() {
     const data = await res.json();
     const pass = res.status === 200 && data.success === true;
     record(
-      'TC-25',
+      'TC-31',
       'Session Logout & Server-Side Revocation',
       'POST /api/v1/auth/logout with active bearer token',
       'HTTP 200, message: "Logged out successfully"',
@@ -681,10 +857,10 @@ async function runTests() {
       res.status,
     );
   } catch (err) {
-    record('TC-25', 'Session Logout', 'POST /auth/logout', 'HTTP 200', err.message, false, 0, err.message);
+    record('TC-31', 'Session Logout', 'POST /auth/logout', 'HTTP 200', err.message, false, 0, err.message);
   }
 
-  // --- TC-26: Refresh Token Re-use Detection / Revoked Session Check ---
+  // --- TC-32: Refresh Token Re-use Detection / Revoked Session Check ---
   if (rotatedRefreshToken) {
     try {
       const res = await fetch(`${BACKEND_URL}/auth/refresh`, {
@@ -698,7 +874,7 @@ async function runTests() {
       // Since session was logged out, refresh should be rejected as revoked
       const pass = res.status === 401 && (data.errorCode === 'SESSION_EXPIRED' || data.errorCode === 'TOKEN_REUSE_DETECTED');
       record(
-        'TC-26',
+        'TC-32',
         'Revoked Session Refresh Rejection',
         'POST /api/v1/auth/refresh with token from revoked session',
         'HTTP 401 Unauthorized, session revoked',
@@ -707,7 +883,7 @@ async function runTests() {
         res.status,
       );
     } catch (err) {
-      record('TC-26', 'Revoked Session Refresh', 'POST /auth/refresh', 'HTTP 401', err.message, false, 0, err.message);
+      record('TC-32', 'Revoked Session Refresh', 'POST /auth/refresh', 'HTTP 401', err.message, false, 0, err.message);
     }
   }
 
